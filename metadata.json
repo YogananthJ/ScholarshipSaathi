@@ -1,0 +1,6 @@
+{
+  "name": "ScholarshipSaathi",
+  "description": "Your AI-powered companion for understanding scholarships, checking eligibility, identifying missing documents, and preparing your application roadmap.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
