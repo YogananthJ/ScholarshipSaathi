@@ -1,11 +1,12 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, Lock } from 'lucide-react';
 import { PageId } from '../../types/scholarship';
 
 interface StepIndicatorProps {
   currentPage: PageId;
   hasResult: boolean;
   onNavigate: (page: PageId) => void;
+  onRequestClearSession?: () => void;
 }
 
 const FLOW_STEPS: { id: PageId; number: number; label: string }[] = [
@@ -20,6 +21,7 @@ export function StepIndicator({
   currentPage,
   hasResult,
   onNavigate,
+  onRequestClearSession,
 }: StepIndicatorProps) {
   const effectiveId: PageId = currentPage === 'roadmap' ? 'results' : currentPage;
   const activeIndex = FLOW_STEPS.findIndex((s) => s.id === effectiveId);
@@ -75,6 +77,26 @@ export function StepIndicator({
             );
           })}
         </ol>
+      </div>
+
+      <div className="border-t border-slate-100 bg-[#F8FAFC]">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-1.5 text-xs text-slate-600 sm:px-6">
+          <p className="flex items-center gap-1.5">
+            <Lock className="h-3.5 w-3.5 shrink-0 text-[#20A477]" />
+            <span>
+              Your inputs and results are saved only for this active browser session and are not stored permanently.
+            </span>
+          </p>
+          {onRequestClearSession && (
+            <button
+              type="button"
+              onClick={onRequestClearSession}
+              className="font-semibold text-[#173B68] underline decoration-slate-300 underline-offset-2 hover:text-[#D65A62] hover:decoration-[#D65A62]"
+            >
+              Clear Session Data
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

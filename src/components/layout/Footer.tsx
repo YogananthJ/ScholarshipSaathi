@@ -66,7 +66,9 @@ export function Footer({ onNavigate, onResetSession }: FooterProps) {
         </div>
 
         <div className="mt-8 flex flex-col gap-2 border-t border-slate-100 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>ScholarshipSaathi · Session-based privacy · No permanent student profile database</p>
+          <p>
+            ScholarshipSaathi · Retained only for your active browser session · Clear manually anytime with Clear Session Data
+          </p>
           <p>Eligibility and application readiness are always evaluated separately.</p>
         </div>
       </div>

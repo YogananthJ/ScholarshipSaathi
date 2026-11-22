@@ -15,13 +15,27 @@ import { AnalysisResult } from '../types/scholarship';
 interface RoadmapPageProps {
   result: AnalysisResult;
   onBackToDashboard: () => void;
+  checkedItems?: Record<string, boolean>;
+  onToggleItem?: (key: string) => void;
 }
 
-export function RoadmapPage({ result, onBackToDashboard }: RoadmapPageProps) {
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+export function RoadmapPage({
+  result,
+  onBackToDashboard,
+  checkedItems: controlledCheckedItems,
+  onToggleItem,
+}: RoadmapPageProps) {
+  const [localCheckedItems, setLocalCheckedItems] = useState<
+    Record<string, boolean>
+  >({});
+  const checkedItems = controlledCheckedItems ?? localCheckedItems;
 
   const toggleItem = (key: string) => {
-    setCheckedItems((prev) => ({
+    if (onToggleItem) {
+      onToggleItem(key);
+      return;
+    }
+    setLocalCheckedItems((prev) => ({
       ...prev,
       [key]: !prev[key],
     }));

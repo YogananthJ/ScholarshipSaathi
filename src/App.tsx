@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Footer } from './components/layout/Footer';
 import { Navbar } from './components/layout/Navbar';
 import { StepIndicator } from './components/layout/StepIndicator';
+import { ConfirmClearModal } from './components/ui/ConfirmClearModal';
 import { SAMPLE_SCENARIOS } from './data/mockScenarios';
 import { AboutPage } from './pages/AboutPage';
 import { AnalysisPage } from './pages/AnalysisPage';
@@ -20,71 +21,28 @@ import {
   ScholarshipInputState,
   StudentProfileState,
 } from './types/scholarship';
+import {
+  INITIAL_PROFILE,
+  INITIAL_SOURCE,
+  clearSessionData,
+  loadSessionData,
+  saveSessionData,
+} from './utils/sessionStorage';
 import { analyzeSuppliedSourceRequirements } from './utils/sourceRequirements';
 import { buildCrewAIPayloadStrings } from './utils/validation';
 
-const SESSION_KEY = 'scholarshipsaathi_session_v2';
-
-const INITIAL_SOURCE: ScholarshipInputState = {
-  scholarshipName: '',
-  sourceText: '',
-  documentUrl: '',
-  uploadedFile: null,
-};
-
-const INITIAL_PROFILE: StudentProfileState = {
-  fullName: '',
-  age: '',
-  nationality: '',
-  residence: '',
-  educationLevel: '',
-  institutionName: '',
-  currentAcademicYear: '',
-  scoreFormat: '',
-  previousAcademicScore: '',
-  annualFamilyIncome: '',
-  additionalFinancialNotes: '',
-  documentResponses: {},
-  customDocuments: [],
-};
-
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<PageId>('landing');
-  const [profileStep, setProfileStep] = useState<ProfileStep>(0);
-  const [sourceInput, setSourceInput] = useState<ScholarshipInputState>(() => {
-    try {
-      const saved = sessionStorage.getItem(SESSION_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.sourceInput) return parsed.sourceInput;
-      }
-    } catch {
-      // Ignore invalid session storage
-    }
-    return INITIAL_SOURCE;
-  });
-
-  const [studentProfile, setStudentProfile] = useState<StudentProfileState>(() => {
-    try {
-      const saved = sessionStorage.getItem(SESSION_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.studentProfile) {
-          return {
-            ...INITIAL_PROFILE,
-            ...parsed.studentProfile,
-            documentResponses: parsed.studentProfile.documentResponses ?? {},
-            customDocuments: Array.isArray(parsed.studentProfile.customDocuments)
-              ? parsed.studentProfile.customDocuments
-              : [],
-          };
-        }
-      }
-    } catch {
-      // Ignore invalid session storage
-    }
-    return INITIAL_PROFILE;
-  });
+  const [initialSession] = useState(() => loadSessionData());
+  const [currentPage, setCurrentPage] = useState<PageId>(initialSession.currentPage);
+  const [profileStep, setProfileStep] = useState<ProfileStep>(
+    initialSession.profileStep
+  );
+  const [sourceInput, setSourceInput] = useState<ScholarshipInputState>(
+    initialSession.sourceInput
+  );
+  const [studentProfile, setStudentProfile] = useState<StudentProfileState>(
+    initialSession.studentProfile
+  );
 
   const sourceRequirements = useMemo(
     () => analyzeSuppliedSourceRequirements(sourceInput),
@@ -94,19 +52,33 @@ export default function App() {
   const [analysisStatus, setAnalysisStatus] = useState<'loading' | 'error'>('loading');
   const [analysisError, setAnalysisError] =
     useState<AnalyzeApiResponse['error'] | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
+    initialSession.analysisResult
+  );
+  const [roadmapCheckedItems, setRoadmapCheckedItems] = useState<
+    Record<string, boolean>
+  >(initialSession.roadmapCheckedItems);
+  const [clearModalOpen, setClearModalOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    try {
-      sessionStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({ sourceInput, studentProfile })
-      );
-    } catch {
-      // Ignore quota errors
-    }
-  }, [sourceInput, studentProfile]);
+    saveSessionData({
+      version: 2,
+      currentPage,
+      profileStep,
+      sourceInput,
+      studentProfile,
+      analysisResult,
+      roadmapCheckedItems,
+    });
+  }, [
+    currentPage,
+    profileStep,
+    sourceInput,
+    studentProfile,
+    analysisResult,
+    roadmapCheckedItems,
+  ]);
 
   const navigateTo = (page: PageId) => {
     if (page !== 'analysis' && abortRef.current) {
@@ -170,6 +142,7 @@ export default function App() {
     if (controller.signal.aborted) return;
 
     if (response.ok && response.result) {
+      setRoadmapCheckedItems({});
       setAnalysisResult(response.result);
       navigateTo('results');
     } else {
@@ -187,25 +160,31 @@ export default function App() {
   const openSampleScenario = (scenarioId: string = SAMPLE_SCENARIOS[0].id) => {
     const found =
       SAMPLE_SCENARIOS.find((s) => s.id === scenarioId) ?? SAMPLE_SCENARIOS[0];
+    setRoadmapCheckedItems({});
     setAnalysisResult(found.result);
     navigateTo('results');
   };
 
-  const handleResetSession = () => {
+  const handleToggleRoadmapItem = (key: string) => {
+    setRoadmapCheckedItems((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleConfirmClearSession = () => {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
     }
+    setClearModalOpen(false);
     setSourceInput(INITIAL_SOURCE);
     setStudentProfile(INITIAL_PROFILE);
     setProfileStep(0);
     setAnalysisResult(null);
     setAnalysisError(null);
-    try {
-      sessionStorage.removeItem(SESSION_KEY);
-    } catch {
-      // Ignore
-    }
+    setRoadmapCheckedItems({});
+    clearSessionData();
     navigateTo('landing');
   };
 
@@ -221,6 +200,7 @@ export default function App() {
         currentPage={currentPage}
         hasResult={Boolean(analysisResult)}
         onNavigate={navigateTo}
+        onRequestClearSession={() => setClearModalOpen(true)}
       />
 
       <main className="flex-1">
@@ -288,7 +268,10 @@ export default function App() {
             result={analysisResult}
             onOpenRoadmap={() => navigateTo('roadmap')}
             onSelectSampleScenario={openSampleScenario}
-            onStartNewCheck={() => navigateTo('scholarship-input')}
+            onStartNewCheck={() => {
+              setAnalysisError(null);
+              navigateTo('scholarship-input');
+            }}
           />
         )}
 
@@ -296,6 +279,8 @@ export default function App() {
           <RoadmapPage
             result={analysisResult}
             onBackToDashboard={() => navigateTo('results')}
+            checkedItems={roadmapCheckedItems}
+            onToggleItem={handleToggleRoadmapItem}
           />
         )}
 
@@ -304,7 +289,16 @@ export default function App() {
         )}
       </main>
 
-      <Footer onNavigate={navigateTo} onResetSession={handleResetSession} />
+      <Footer
+        onNavigate={navigateTo}
+        onResetSession={() => setClearModalOpen(true)}
+      />
+
+      <ConfirmClearModal
+        isOpen={clearModalOpen}
+        onCancel={() => setClearModalOpen(false)}
+        onConfirm={handleConfirmClearSession}
+      />
     </div>
   );
 }

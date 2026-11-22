@@ -87,6 +87,15 @@ export function ResultsDashboardPage({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
+            {!result.isSamplePreview && (
+              <button
+                type="button"
+                onClick={onStartNewCheck}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-[#173B68] transition-colors hover:bg-slate-50"
+              >
+                Start Another Analysis
+              </button>
+            )}
             <button
               type="button"
               onClick={onOpenRoadmap}
